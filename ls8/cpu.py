@@ -5,12 +5,37 @@ import sys
 class CPU:
     """Main CPU class."""
 
-    def __init__(self):
+    def __init__(self, bits = 8):
         """Construct a new CPU."""
-        pass
+        max_value = 2^bits
+
+        #State
+        self.running = True
+
+        # instructions...(pc), pc+1 and values (pc + 2)
+        self.ram = [0] * max_value
+
+        self.reg = [0] * bits
+
+        #PC - Program counter = this will point to 1st byte of running instructions
+        self.pc = 0
+
+        # address being read or written to
+        self.MAR = 0 
+        # value @ address 
+        self.MDR = 0 
+
+        self.load()
+
+        self.instructions = {
+            "LDI": 0b10000010,
+            "PRN": 0b01000111,
+            "HLT": 0b00000001
+        }
+
+
 
     def load(self):
-        """Load a program into memory."""
 
         address = 0
 
@@ -60,6 +85,84 @@ class CPU:
 
         print()
 
+    def ram_read(self, pc): 
+        value = self.ram[pc]
+        self.MAR = pc
+        self.MDR = value
+        return value
+
+    def ram_write(self, pc, value):
+        self.MAR = pc
+        self.MDR = value
+        self.ram[pc] = value
+        return (pc, value)
+
+    def save_reg(self, reg, value):
+        self.reg[reg] = value
+        self.pc += 3 
+
+    def current_reg(self):
+        return self.ram_read(self.pc + 1)
+
+    def current_value(self):
+        return self.ram_read(self.pc + 2)
+
+    def ldi(self):
+        self.reg[self.current_reg()] = self.current_value() & 255
+        self.pc += 3
+
+    def prn(self):
+        print(self.reg[self.current_reg()])
+
+        self.pc += 2
+
+    def halt(self): 
+        self.running = False
+
     def run(self):
         """Run the CPU."""
-        pass
+        while self.running:
+            ir = self.ram_read(self.pc)
+            #methods move ptr to next instruction
+            if ir == self.instructions["LDI"]:
+                self.ldi()
+
+            elif ir == self.instructions["PRN"]:                
+                self.prn()
+
+            elif ir == self.instructions["HLT"]:
+                self.halt()
+                
+pc = CPU()
+pc.run()
+pc.trace()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
