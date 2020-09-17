@@ -44,7 +44,7 @@ class CPU:
         try:
             filename = sys.argv[1]
         except:
-            filename = 'mult.ls8'
+            filename = 'stack.ls8'
 
         cur_path = os.path.dirname(__file__)
 
@@ -62,7 +62,7 @@ class CPU:
                     continue
 
                 try:
-                    line = bin(int(temp[0], 2))
+                    line = int(temp[0], 2)
                     self.ram[address] = line
 
                 except ValueError:
@@ -79,16 +79,14 @@ class CPU:
         """ALU operations."""
 
         if op == "ADD":
-            self.reg[reg_a] = (self.reg[reg_a] + self.reg[reg_b]) & 255
+            self.reg[reg_a] = (self.reg[reg_a] + self.reg[reg_b]) & self.max_value
         elif op == "MUL":
             #255 is max_value mask
-            self.reg[reg_a] = (self.reg[reg_a] * self.reg[reg_b]) & 255
+            self.reg[reg_a] = (self.reg[reg_a] * self.reg[reg_b]) & self.max_value
         else:
             raise Exception("Unsupported ALU operation")
 
     def mul(self):
-        print(self.reg[1])
-        print(f"multiplying {self.reg[self.ram_read(self.pc+1)]} and {self.reg[self.ram_read(self.pc+2)]}")
         self.alu("MUL", self.ram_read(self.pc+1), self.ram_read(self.pc+2))
 
 
@@ -114,25 +112,25 @@ class CPU:
 
     def ram_read(self, pc): 
         value = self.ram[pc]
-        return int(value, 2)
+        return value
 
     def ram_write(self, pc, value):
         self.ram[pc] = value
         return (pc, value)
 
-    def save_reg(self, reg, value):
-        self.reg[reg] = value
-        self.pc += 3 
+    # def save_reg(self, reg, value):
+    #     self.reg[reg] = value
+    #     self.pc += 3 
 
     def current_reg(self):
         return self.ram_read(self.pc + 1)
 
-    def current_value(self):
-        return self.ram_read(self.pc + 2)
+    # def current_value(self):
+    #     return self.ram_read(self.pc + 2)
 
     def ldi(self):
         int_value = self.ram_read(self.pc + 2)
-        self.reg[self.current_reg()] = int_value & 255
+        self.reg[self.current_reg()] = int_value & self.max_value
 
     def prn(self):
         print(self.reg[self.current_reg()])
@@ -140,6 +138,14 @@ class CPU:
 
     def hlt(self): 
         self.running = False
+
+    def pop(self):        
+        self.reg[self.current_reg()] = self.ram_read(self.reg[self.SP])
+        self.reg[self.SP] += 1
+
+    def push(self):        
+        self.reg[self.SP] -= 1
+        self.ram[self.reg[self.SP]] = self.reg[self.current_reg()]
 
     def run(self):
         """Run the CPU."""
@@ -154,44 +160,14 @@ class CPU:
                 instruction = getattr(CPU, self.instructions[self.ram_read(self.pc)].lower())
                 instruction(self)
                 print(instruction)
-                self.pc += shift
-                print(f"shifted {shift}") 
+                self.pc += shift 
 
             else:
                 print("Bad instructions")
+                self.running = False
+                self.pc = 0
                 return
                 
 pc = CPU()
-pc.run()
 pc.trace()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+pc.run()
