@@ -13,7 +13,7 @@ class CPU:
         self.running = True
 
         #Arch
-        self.ram = ['0b0'] * self.memory_size
+        self.ram = [0] * self.memory_size
 
         self.num_registers = bits
         self.reg = [0] * self.num_registers
@@ -33,7 +33,10 @@ class CPU:
             0b00000001: "HLT",
             0b10100010: "MUL",
             0b01000101: "PUSH",
-            0b01000110: "POP"
+            0b01000110: "POP",
+            0b01010000: "CALL",
+            0b00010001: "RET",
+            0b10100000: "ADD"
         }
 
     def load(self):
@@ -44,7 +47,7 @@ class CPU:
         try:
             filename = sys.argv[1]
         except:
-            filename = 'stack.ls8'
+            filename = 'call.ls8'
 
         cur_path = os.path.dirname(__file__)
 
@@ -63,15 +66,18 @@ class CPU:
 
                 try:
                     line = int(temp[0], 2)
-                    self.ram[address] = line
+                    print(line)
+                    self.ram_write(address, line)
 
                 except ValueError:
                     print(f"Bad Num: {temp[0]}")
                 except IndexError:
                     print(f"No addy at index {address}")
                 address += 1
-        for line in self.ram:
-            print(line)
+        f.close()
+
+    def add(self):
+        self.alu("ADD", self.current_reg(), self.ram_read(self.pc+2))
 
        
 
@@ -101,8 +107,8 @@ class CPU:
             #self.fl,
             #self.ie,
             self.ram_read(self.pc),
-            self.ram_read(self.pc + 1),
-            self.ram_read(self.pc + 2)
+            self.current_reg(),
+            self.current_value()
         ), end='')
 
         for i in range(8):
@@ -125,11 +131,11 @@ class CPU:
     def current_reg(self):
         return self.ram_read(self.pc + 1)
 
-    # def current_value(self):
-    #     return self.ram_read(self.pc + 2)
+    def current_value(self):
+        return self.ram_read(self.pc + 2)
 
     def ldi(self):
-        int_value = self.ram_read(self.pc + 2)
+        int_value = self.current_value()
         self.reg[self.current_reg()] = int_value & self.max_value
 
     def prn(self):
@@ -145,25 +151,43 @@ class CPU:
 
     def push(self):        
         self.reg[self.SP] -= 1
-        self.ram[self.reg[self.SP]] = self.reg[self.current_reg()]
+        self.ram_write(self.reg[self.SP], self.reg[self.current_reg()])
+
+    def call(self):
+        ret_addr = self.pc + 2
+        self.reg[self.SP] -= 1
+        self.ram_write(self.reg[self.SP], ret_addr)
+        #call
+        reg_num = self.ram_read(self.current_reg())
+        self.pc = self.reg[reg_num]
+
+    def ret(self):
+        ret_addr = self.ram_read(self.reg[self.SP])
+        self.reg[self.SP] += 1
+        self.pc = ret_addr
+
+    def shift_bytes_by_ins_size(self):
+        ir = self.ram_read(self.pc)
+        size = ir >> 6
+        shift = size + 1
+        self.pc += shift
 
     def run(self):
         """Run the CPU."""
         while self.running:
             ir = self.ram_read(self.pc)
-            #methods move ptr to next instruction
-            size = ir >> 6
-            shift = size + 1
-
+            
             if ir in self.instructions:
 
                 instruction = getattr(CPU, self.instructions[self.ram_read(self.pc)].lower())
                 instruction(self)
                 print(instruction)
-                self.pc += shift 
+
+                if ir & 0b0010000 == 0:
+                    self.shift_bytes_by_ins_size() 
 
             else:
-                print("Bad instructions")
+                print(f"Bad instructions: {ir}")
                 self.running = False
                 self.pc = 0
                 return
